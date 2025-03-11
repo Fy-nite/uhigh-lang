@@ -1,0 +1,17 @@
+// Simple hello world program
+func hello() {
+    print "Hello, World!"
+
+    // Variables and arithmetic
+    var x
+    var y
+    x = 5
+    y = 10
+    print x
+    print y
+    print "Sum is:"
+    x = x + y
+    print x
+
+    return
+}

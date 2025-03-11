@@ -1,0 +1,35 @@
+func advanced() {
+    // Constants
+    const MAX 100
+    const MIN 1
+
+    // Variables
+    var num
+    var sum
+    sum = 0
+
+    print "Enter numbers between 1 and 100. Enter 0 to stop."
+
+    while num != 0 {
+        input num
+        
+        if num < MIN {
+            print "Too small!"
+        }
+        
+        if num > MAX {
+            print "Too big!"
+        }
+        
+        if num >= MIN {
+            if num <= MAX {
+                sum = sum + num
+            }
+        }
+    }
+
+    print "Sum is:"
+    print sum
+
+    return
+}

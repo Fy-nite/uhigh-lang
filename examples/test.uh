@@ -1,0 +1,9 @@
+var x
+x = 55
+
+func meow(){
+print x
+if x != 40{
+    print "not x"
+}
+} 

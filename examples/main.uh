@@ -1,0 +1,7 @@
+include "hello.uh"
+include "advanced.uh"
+include "test.uh"
+
+func main() {
+    meow()
+}

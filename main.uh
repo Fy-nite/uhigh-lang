@@ -1,0 +1,13 @@
+func main()
+{
+    print("Hello, World!\n")
+    print("This is a test.\n")
+    print("This is only a test\n")
+    print("This is a test of the emergency broadcast system.\n")
+    print("This is only a test.\n")
+    print("If this were a real emergency, you would be dead\n")
+    var x
+    input x
+    print("You said: ")
+    print(x)
+}

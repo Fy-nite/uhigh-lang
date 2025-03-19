@@ -1,7 +1,0 @@
-var x
-x = 55
-
-func meow() {
-    print(x)
-
-}

@@ -51,6 +51,10 @@ class Include(ASTNode):
     def __init__(self, filename: str):
         self.filename = filename
 
+class InlineAsm(ASTNode):
+    def __init__(self, code: str):
+        self.code = code
+
 class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
@@ -78,6 +82,8 @@ class Parser:
             return self.while_stmt()
         elif token[0] == 'IDENT' and token[1] == 'func':
             return self.func_decl()
+        elif token[0] == 'ASM':  # <-- Changed from IDENT to ASM
+            return self.inline_asm_stmt()
         elif token[0] == 'IDENT':
             return self.assignment_or_func_call()
         else:
@@ -142,6 +148,30 @@ class Parser:
         body = self.block()
         return FuncDecl(name, body)
 
+    def inline_asm_stmt(self) -> InlineAsm:
+        # Print current token for debugging
+        print(f"Current token in inline_asm_stmt: {self.tokens[self.current]}")
+        
+        # Consume the ASM token
+        self.consume('ASM')  
+        
+        # Print next token for debugging
+        print(f"Next token after ASM: {self.tokens[self.current]}")
+        
+        # Consume the LBRACE token
+        self.consume('LBRACE')
+        
+        # Check for ASM_CONTENT token
+        if self.match('ASM_CONTENT'):
+            asm_code = self.consume('ASM_CONTENT')
+        else:
+            asm_code = ""
+            
+        # Consume the RBRACE token
+        self.consume('RBRACE')
+        
+        return InlineAsm(asm_code)
+
     def assignment_or_func_call(self) -> Union[Assignment, FuncCall]:
         name = self.consume('IDENT')
         if self.match('ASSIGN'):
@@ -158,6 +188,14 @@ class Parser:
     def block(self) -> List[ASTNode]:
         statements = []
         while not self.match('RBRACE'):
+            # Skip any leftover NEWLINE tokens (shouldn't happen with fixed lexer)
+            if self.current < len(self.tokens) and self.tokens[self.current][0] == 'NEWLINE':
+                self.current += 1
+                continue
+                
+            if self.current >= len(self.tokens):
+                raise RuntimeError('Unexpected end of file while parsing block')
+                
             statements.append(self.statement())
         self.consume('RBRACE')
         return statements

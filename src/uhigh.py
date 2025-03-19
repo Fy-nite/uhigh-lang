@@ -2,9 +2,9 @@
 
 import sys
 import os
-from typing import List, Dict
+from typing import List, Dict, Union
 from lexer import Lexer
-from parser import Parser, Program, VarDecl, ConstDecl, Assignment, Print, IfStatement, WhileStatement, FuncDecl, FuncCall, Include, ASTNode
+from parser import Parser, Program, VarDecl, ConstDecl, Assignment, Print, IfStatement, WhileStatement, FuncDecl, FuncCall, Include, ASTNode, InlineAsm
 
 class UHighCompiler:
     def __init__(self):
@@ -230,6 +230,23 @@ class UHighCompiler:
             self.current_function = None  # Reset current function
         elif isinstance(statement, FuncCall):
             self.output.append(f"CALL #{statement.name}")
+        elif isinstance(statement, InlineAsm):
+            # Add inline assembly code directly to the output
+            # Prefix with a comment indicating it's inline assembly
+            self.output.append(f"    ; Inline μHigh assembly block")
+            
+            # Process each line of assembly code
+            lines = statement.code.split('\n')
+            for line in lines:
+                stripped = line.strip()
+                if stripped:  # Skip empty lines
+                    # Don't add extra indentation for comment lines
+                    if stripped.startswith(';'):
+                        self.output.append(f"    {stripped}")
+                    else:
+                        self.output.append(f"    {stripped}")
+            
+            self.output.append("")  # Add an empty line after the assembly block
 
     def compile_condition(self, condition: Union[str, int], false_label: str) -> List[str]:
         ops = {

@@ -1,0 +1,26 @@
+func with_asm() {
+    var x
+    x = 42
+    print("Using inline assembly:")
+    
+    asm { 
+        ; This is direct MicroASM code
+        MOV RAX 1
+        MOV RBX R0  ; R0 contains the value of x
+        CALL #printint
+        
+        ; Use custom MicroASM instructions
+        ADD R0 10
+        MOV RAX 1
+        MOV RBX R0
+        CALL #printint
+    }
+    
+    print("Back to μHigh code")
+    x = 10
+    print(x)
+}
+
+func main() {
+    with_asm()
+}

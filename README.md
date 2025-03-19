@@ -99,9 +99,12 @@ This will compile all .uh files in the `examples` directory and generate a singl
 
 ## Example
 
-```
-var x
-x = 42
-print "The answer is:"
-print x
+```go
+func main()
+{
+    var x
+    x = 42
+    print "The answer is:"
+    print x
+}
 ```

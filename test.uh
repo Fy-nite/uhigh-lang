@@ -1,4 +1,0 @@
-func meow(){
-    print "meow"
-    return
-}

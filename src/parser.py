@@ -70,7 +70,7 @@ class Parser:
             return self.var_decl()
         elif token[0] == 'IDENT' and token[1] == 'const':
             return self.const_decl()
-        elif token[0] == 'IDENT' and token[1] == 'print':
+        elif token[0] == 'PRINT':  # Handle the PRINT token directly
             return self.print_stmt()
         elif token[0] == 'IDENT' and token[1] == 'if':
             return self.if_stmt()
@@ -105,12 +105,13 @@ class Parser:
         return ConstDecl(name, value)
 
     def print_stmt(self) -> Print:
-        self.consume('IDENT', 'print')
-        # Handle both string literals and expressions
+        self.consume('PRINT')  # Match 'print'
+        self.consume('LPAREN')  # Match '('
         if self.match('STRING'):
             value = self.consume('STRING')
         else:
             value = self.expression()
+        self.consume('RPAREN')  # Match ')'
         return Print(value)
 
     def if_stmt(self) -> IfStatement:
@@ -169,6 +170,8 @@ class Parser:
             return self.consume('STRING')
         elif token[0] == 'IDENT':
             return self.consume('IDENT')
+        elif token[0] == 'NEQ':  # Handle '!=' operator
+            return self.consume('NEQ')
         else:
             raise RuntimeError(f'Unexpected token in expression: {token}')
 

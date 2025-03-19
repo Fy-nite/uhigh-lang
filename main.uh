@@ -1,5 +1,0 @@
-func main(){
-    print "hello world\n"
-    var x = "meow\n"
-    print x
-}

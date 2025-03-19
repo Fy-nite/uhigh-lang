@@ -1,6 +1,6 @@
 // Simple hello world program
 func hello() {
-    print "Hello, World!"
+    print("Hello, World!")
 
     // Variables and arithmetic
     var x
@@ -9,7 +9,7 @@ func hello() {
     y = 10
     print x
     print y
-    print "Sum is:"
+    print("Sum is:")
     x = x + y
     print x
 

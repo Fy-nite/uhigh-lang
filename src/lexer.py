@@ -12,16 +12,18 @@ class Lexer:
     def tokenize(self) -> List[Token]:
         token_specification = [
             ('NUMBER',   r'\d+'),
-            ('IDENT',    r'[A-Za-z_]\w*'),
+            ('PRINT',    r'print'),  # Match 'print' first
+            ('IDENT',    r'[A-Za-z_]\w*'),  # Match identifiers after reserved keywords
             ('STRING',   r'"[^"]*"'),
             ('ASSIGN',   r'='),
             ('END',      r';'),
-            ('LPAREN',   r'\('),
-            ('RPAREN',   r'\)'),
+            ('LPAREN',   r'\('),     # Recognize '('
+            ('RPAREN',   r'\)'),     # Recognize ')'
             ('LBRACE',   r'\{'),
             ('RBRACE',   r'\}'),
             ('COMMA',    r','),
             ('OP',       r'[+\-*/]'),
+            ('NEQ',      r'!='),     # Add a token for '!=' (not equal)
             ('NEWLINE',  r'\n'),
             ('SKIP',     r'[ \t]+'),
             ('MISMATCH', r'.'),
@@ -40,7 +42,7 @@ class Lexer:
             elif kind == 'SKIP':
                 pass
             elif kind == 'MISMATCH':
-                raise RuntimeError(f'{value!r} unexpected on line {line_num}')
+                raise RuntimeError(f'{value} unexpected on line {line_num}')
             else:
                 self.tokens.append((kind, value))
             self.current = mo.end()

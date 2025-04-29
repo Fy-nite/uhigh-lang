@@ -2,8 +2,8 @@ func with_asm() {
     var x
     x = 42
     print("Using inline assembly:")
-    
-    asm { 
+    asm {
+
         ; This is direct MicroASM code
         MOV RAX 1
         MOV RBX R0  ; R0 contains the value of x

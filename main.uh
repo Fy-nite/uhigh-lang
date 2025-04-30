@@ -1,10 +1,9 @@
 func main()
 {
-    print("Hello, World!\n")
-    print("This is a test.\n")
-    print("This is only a test\n")
-    print("This is a test of the emergency broadcast system.\n")
-    print("This is only a test.\n")
-    print("If this were a real emergency, you would be dead\n")
- 
+    var x = 50
+    var y = 50
+    var z = x + y
+    if z != 100 {
+        print("greater or equal motherfuckers!!!\n")
+    }
 }

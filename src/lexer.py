@@ -11,6 +11,12 @@ class Lexer:
 
     def tokenize(self) -> List[Token]:
         token_specification = [
+            ('NEQ',      r'!='),     # Not equal
+            ('EQ',       r'=='),    # Equal
+            ('LE',       r'<='),    # Less than or equal
+            ('GE',       r'>='),    # Greater than or equal
+            ('LT',       r'<'),     # Less than
+            ('GT',       r'>'),     # Greater than
             ('NUMBER',   r'\d+'),
             ('PRINT',    r'print'),  # Match 'print' first
             ('ASM',      r'asm'),     # Match 'asm' keyword
@@ -24,7 +30,6 @@ class Lexer:
             ('RBRACE',   r'\}'),
             ('COMMA',    r','),
             ('OP',       r'[+\-*/]'),
-            ('NEQ',      r'!='),     # Add a token for '!=' (not equal)
             ('COMMENT',  r'//.*|;.*'),  # Match comments
             ('NEWLINE',  r'\n'),
             ('SKIP',     r'[ \t]+'),
@@ -108,6 +113,11 @@ class Lexer:
             self.current = mo.end()
             mo = get_token(self.source, self.current)
             
+        
         # For debugging, print tokens
-        print("Tokens:", self.tokens)
+        if __debug__:
+            print("Tokens:")
+            for token in self.tokens:
+                print(token)
+
         return self.tokens

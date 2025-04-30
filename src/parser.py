@@ -24,8 +24,8 @@ class Assignment(ASTNode):
         self.value = value
 
 class Print(ASTNode):
-    def __init__(self, value: Union[str, int]):
-        self.value = value
+    def __init__(self, values):
+        self.values = values
 
 class IfStatement(ASTNode):
     def __init__(self, condition: ASTNode, true_block: List[ASTNode], false_block: List[ASTNode] = None):
@@ -56,14 +56,54 @@ class InlineAsm(ASTNode):
         self.code = code
 
 class Parser:
-    def __init__(self, tokens: List[Token]):
+    def __init__(self, tokens: List[Token], debug: bool = False):
         self.tokens = tokens
         self.current = 0
+        self.debug = debug
 
     def parse(self) -> Program:
         statements = []
         while self.current < len(self.tokens):
             statements.append(self.statement())
+        for stmt in statements:
+            if isinstance(stmt, InlineAsm):
+                print(f"Inline ASM detected: {stmt.code}")
+        # Print the final AST for debugging
+        if self.debug:
+            print("\nFinal AST:")
+        def print_ast(node, level=0):
+            indent = "  " * level
+            if isinstance(node, list):
+                for item in node:
+                    print_ast(item, level)
+                return
+
+            if isinstance(node, (str, int)):
+                if self.debug:
+                    print(f"{indent}{node}")
+                return
+
+            node_type = node.__class__.__name__
+            attrs = {}
+
+            for k, v in node.__dict__.items():
+                if isinstance(v, list):
+                    if self.debug:
+                        print(f"{indent}{node_type}.{k}:")
+                    for item in v:
+                        print_ast(item, level + 1)
+                elif isinstance(v, ASTNode):
+                    if self.debug:
+                        print(f"{indent}{node_type}.{k}:")
+                    print_ast(v, level + 1)
+                else:
+                    attrs[k] = v             
+
+            if attrs and self.debug:
+                print(f"{indent}{node_type}: {attrs}")
+
+        for stmt in statements:
+            print_ast(stmt)
         return Program(statements)
 
     def statement(self) -> ASTNode:
@@ -111,14 +151,14 @@ class Parser:
         return ConstDecl(name, value)
 
     def print_stmt(self) -> Print:
-        self.consume('PRINT')  # Match 'print'
-        self.consume('LPAREN')  # Match '('
-        if self.match('STRING'):
-            value = self.consume('STRING')
-        else:
-            value = self.expression()
-        self.consume('RPAREN')  # Match ')'
-        return Print(value)
+        self.consume('PRINT')
+        self.consume('LPAREN')
+        args = [self.expression()]
+        while self.current < len(self.tokens) and self.tokens[self.current][0] == 'COMMA':
+            self.consume('COMMA')
+            args.append(self.expression())
+        self.consume('RPAREN')
+        return Print(args)
 
     def if_stmt(self) -> IfStatement:
         self.consume('IDENT', 'if')
@@ -201,17 +241,38 @@ class Parser:
         return statements
 
     def expression(self) -> Union[str, int]:
+        # Support binary expressions: left op right
         token = self.tokens[self.current]
+        # Handle left operand
         if token[0] == 'NUMBER':
-            return int(self.consume('NUMBER'))
+            left = self.consume('NUMBER')
         elif token[0] == 'STRING':
-            return self.consume('STRING')
+            left = self.consume('STRING')
         elif token[0] == 'IDENT':
-            return self.consume('IDENT')
-        elif token[0] == 'NEQ':  # Handle '!=' operator
-            return self.consume('NEQ')
+            left = self.consume('IDENT')
         else:
             raise RuntimeError(f'Unexpected token in expression: {token}')
+
+        # Check for binary operator (comparison or arithmetic)
+        if self.current < len(self.tokens):
+            op_token = self.tokens[self.current]
+            if op_token[0] in ('EQ', 'NEQ', 'LE', 'GE', 'LT', 'GT', 'OP'):
+                op = self.consume(op_token[0])
+                # Right operand
+                right_token = self.tokens[self.current]
+                if right_token[0] == 'NUMBER':
+                    right = self.consume('NUMBER')
+                elif right_token[0] == 'STRING':
+                    right = self.consume('STRING')
+                elif right_token[0] == 'IDENT':
+                    right = self.consume('IDENT')
+                else:
+                    raise RuntimeError(f'Unexpected token in binary expression: {right_token}')
+                # Return as a string for the compiler to parse
+                return f"{left} {op} {right}"
+
+        # If not a binary expression, return the single value
+        return left
 
     def consume(self, expected_type: str, expected_value: str = None) -> str:
         token = self.tokens[self.current]

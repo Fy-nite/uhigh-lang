@@ -5,19 +5,20 @@ LBL main
     ;; Length: 36 bytes
     DB $100 "greater or equal motherfuckers!!!\n"
 
-PUSH 50
-PUSH $[RSP]
-PUSH 50
-PUSH $[RSP]
-MOV R0 $[RSP + 1]
-ADD R0 $[RSP + 2]
-PUSH R0
-PUSH 100
-CMP $[RSP + 3] $[RSP]
+MOV R0 50
+MOV R1 50
+MOV R2 R0
+MOV R3 R1
+MOV R4 R2
+ADD R4 R3
+MOV R2 R4
+MOV R5 R2
+MOV R6 100
+CMP R5 R6
 JE #if_false_0
 LBL if_true_0
-MOV RBX 100
 MOV RAX 1
+MOV RBX $100
 CALL #printf
 JMP #if_end_0
 LBL if_false_0

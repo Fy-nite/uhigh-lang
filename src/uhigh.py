@@ -11,14 +11,12 @@ from argparse import ArgumentParser
 
 class UHighCompiler:
     def __init__(self):
-        self.variables: Dict[str, int] = {}  # Map variable names to stack offsets
-        self.stack_offset: int = 0  # Track the current stack offset
-        self.output: List[str] = []
-        self.header_added = False
+        self.variables: Dict[str, int] = {}
         self.label_counter: int = 0
         self.current_reg: int = 0
         self.string_counter: int = 0
         self.strings: Dict[str, int] = {}
+        self.output: List[str] = []
         self.next_mem_addr = 100  # Start at memory address 100
         self.const_variables: Dict[str, bool] = {}  # Track constant variables
         self.in_loop = False
@@ -27,6 +25,7 @@ class UHighCompiler:
         self.loop_stack = []  # For nested loops
         self.block_stack = []  # Track all blocks (if/while)
         self.current_block_end = None
+        self.header_added = False  # Track if header is added
         self.current_function = None  # Track current function scope
         self.function_strings = {}    # Store strings per function: {function_name: {string: addr}}
         self.string_lengths = {}   # Track string lengths for memory allocation
@@ -142,41 +141,131 @@ class UHighCompiler:
         for statement in statements:
             self.compile_statement(statement)
 
-    def allocate_stack(self, name: str):
-        """Allocate space on the stack for a variable."""
-        self.stack_offset += 1
-        self.variables[name] = self.stack_offset  # Positive offset for stack
-
     def compile_statement(self, statement: ASTNode):
         if isinstance(statement, VarDecl):
-            self.allocate_stack(statement.name)
+            self.variables[statement.name] = len(self.variables)
             if statement.initial_value is not None:
+                dest_reg = f"R{self.variables[statement.name]}"
                 if isinstance(statement.initial_value, int):
-                    self.output.append(f"PUSH {statement.initial_value}")
+                    self.output.append(f"MOV {dest_reg} {statement.initial_value}")
+                elif isinstance(statement.initial_value, str) and statement.initial_value.startswith('"'):
+                    addr = self.get_string_address(statement.initial_value[1:-1])
+                    self.output.append(f"MOV {dest_reg} ${addr}")
                 else:
-                    value_reg = self.compile_expression(statement.initial_value)
-                    self.output.append(f"PUSH {value_reg}")
+                    result_reg = self.compile_expression(statement.initial_value)
+                    if result_reg != dest_reg:
+                        self.output.append(f"MOV {dest_reg} {result_reg}")
         elif isinstance(statement, ConstDecl):
             self.variables[statement.name] = len(self.variables)
             self.const_variables[statement.name] = True
             self.output.append(f"MOV R{self.variables[statement.name]} {statement.value}")
         elif isinstance(statement, Assignment):
+            dest_reg = f"R{self.variables[statement.name]}"
             if isinstance(statement.value, int):
-                self.output.append(f"MOV $[RSP + {self.variables[statement.name]}] {statement.value}")
+                self.output.append(f"MOV {dest_reg} {statement.value}")
+            elif isinstance(statement.value, str) and statement.value.startswith('"'):
+                addr = self.get_string_address(statement.value[1:-1])
+                self.output.append(f"MOV {dest_reg} ${addr}")
             else:
-                value_reg = self.compile_expression(statement.value)
-                self.output.append(f"MOV $[RSP + {self.variables[statement.name]}] {value_reg}")
+                result_reg = self.compile_expression(statement.value)
+                if result_reg != dest_reg:  # Only generate MOV if registers are different
+                    self.output.append(f"MOV {dest_reg} {result_reg}")
         elif isinstance(statement, Print):
-            value = statement.values[0]
-            if isinstance(value, int):
-                self.output.append(f"MOV RBX {value}")
-                self.output.append("MOV RAX 1")  # stdout
-                self.output.append("CALL #printf")
-            elif isinstance(value, str):
-                string_address = self.get_string_address(value[1:-1])  # Remove quotes
-                self.output.append(f"MOV RBX {string_address}")
-                self.output.append("MOV RAX 1")  # stdout
-                self.output.append("CALL #printf")
+            # Check if the first value is a variable or constant
+            if len(statement.values) == 1:
+                value = statement.values[0]
+                if isinstance(value, int):
+                    # Directly print the integer
+                    reg = self.get_next_reg()
+                    self.output.append(f"MOV {reg} {value}")
+                    self.output.extend([
+                        f"MOV RAX 1",
+                        f"MOV RBX {reg}",
+                        f"CALL #printint"
+                    ])
+                    # check if it' a variable then use printint for int type or printf for string type
+                    
+                elif isinstance(value, str) and value.startswith('"'):
+                    # Directly print the string
+                    addr = self.get_string_address(value[1:-1])
+                    self.output.extend([
+                        f"MOV RAX 1",
+                        f"MOV RBX ${addr}",
+                        f"CALL #printf"
+                    ])
+                elif isinstance(value, str) and value in self.const_variables:
+                    # Directly print the constant variable
+                    reg = f"R{self.variables[value]}"
+                    self.output.extend([
+                        f"MOV RAX 1",
+                        f"MOV RBX {reg}",
+                        f"CALL #printint"
+                    ])
+                
+                
+                
+                elif isinstance(value, str) and value in self.variables:
+                    # Check if the variable is an integer or string
+                    if isinstance(self.variables[value], int):
+                        # Use printint for integer variables
+                        reg = f"R{self.variables[value]}"
+                        self.output.extend([
+                            f"MOV RAX 1",
+                            f"MOV RBX {reg}",
+                            f"CALL #printint"
+                        ])
+                    else:
+                        # Use printf for string variables
+                        reg = f"R{self.variables[value]}"
+                        self.output.extend([
+                            f"MOV RAX 1",
+                            f"MOV RBX {reg}",
+                            f"CALL #printf"
+                        ])
+                else:
+                    # Fallback to formatted string handling
+                    fmt = value
+                    fmt_addr = self.get_string_address(fmt[1:-1]) if isinstance(fmt, str) and fmt.startswith('"') else fmt
+                    formatted_addr = self.get_next_reg()
+                    self.output.append(f"MNI Memory.allocate {formatted_addr} 256")
+                    self.output.append(f"MNI StringOperations.format {formatted_addr} {fmt_addr}")
+                    self.output.extend([
+                        f"MOV RAX 1",
+                        f"MOV RBX {formatted_addr}",
+                        f"CALL #printf"
+                    ])
+            else:
+                # Handle multiple arguments (fallback to formatted string handling)
+                fmt = statement.values[0]
+                fmt_addr = self.get_string_address(fmt[1:-1]) if isinstance(fmt, str) and fmt.startswith('"') else fmt
+                arg_addrs = []
+
+                # Collect addresses of arguments
+                for arg in statement.values[1:]:
+                    if isinstance(arg, int):
+                        reg = self.get_next_reg()
+                        self.output.append(f"MOV {reg} {arg}")
+                        arg_addrs.append(reg)
+                    elif isinstance(arg, str) and arg.startswith('"'):
+                        addr = self.get_string_address(arg[1:-1])
+                        arg_addrs.append(f"${addr}")
+                    else:
+                        reg = self.compile_expression(arg)
+                        arg_addrs.append(reg)
+
+                # Allocate memory for the formatted string
+                formatted_addr = self.get_next_reg()
+                self.output.append(f"MNI Memory.allocate {formatted_addr} 256")
+
+                # Call MNI StringOperations.format
+                self.output.append(f"MNI StringOperations.format {formatted_addr} {fmt_addr} {' '.join(arg_addrs)}")
+
+                # Pass the formatted string to printf
+                self.output.extend([
+                    f"MOV RAX 1",
+                    f"MOV RBX {formatted_addr}",
+                    f"CALL #printf"
+                ])
         elif isinstance(statement, IfStatement):
             unique_id = self.label_counter
             true_label = f"if_true_{unique_id}"
@@ -303,16 +392,18 @@ class UHighCompiler:
         raise ValueError(f"Invalid condition: {condition}")
 
     def compile_expression(self, expr: str) -> str:
-        """Compile an expression and return the result in a temporary stack location."""
         expr = expr.strip()
         
         # Simple variable, constant, or number
         if expr.isdigit():
-            self.output.append(f"PUSH {expr}")
-            return "$[RSP]"
+            reg = self.get_next_reg()
+            self.output.append(f"MOV {reg} {expr}")
+            return reg
             
         if expr in self.variables:
-            return f"$[RSP + {self.variables[expr]}]"
+            reg = self.get_next_reg()
+            self.output.append(f"MOV {reg} R{self.variables[expr]}")
+            return reg
 
         if expr in self.const_variables:
             return f"R{self.variables[expr]}"

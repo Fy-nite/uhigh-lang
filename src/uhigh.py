@@ -59,8 +59,10 @@ class UHighCompiler:
     def collect_strings(self, program: Program):
         """Pre-process to collect all strings in the program"""
         def process_node(node):
-            if isinstance(node, Print) and isinstance(node.value, str) and node.value.startswith('"'):
-                self.get_string_address(node.value[1:-1])
+            if isinstance(node, Print):
+                for value in node.values:
+                    if isinstance(value, str) and value.startswith('"'):
+                        self.get_string_address(value[1:-1])
             elif isinstance(node, VarDecl) and isinstance(node.initial_value, str) and node.initial_value.startswith('"'):
                 self.get_string_address(node.initial_value[1:-1])
             elif isinstance(node, Assignment) and isinstance(node.value, str) and node.value.startswith('"'):
@@ -118,6 +120,9 @@ class UHighCompiler:
             ])
             self.header_added = True
 
+        # Collect all strings in the program first
+        self.collect_strings(program)
+
         # Process includes first
         includes = []
         statements = []
@@ -139,7 +144,22 @@ class UHighCompiler:
 
         # Process remaining statements
         for statement in statements:
-            self.compile_statement(statement)
+            if isinstance(statement, FuncDecl) and statement.name == "main":
+                self.output.append(f"LBL {statement.name}")
+
+                # Output string definitions for the main function
+                if "global" in self.function_strings:
+                    for string, addr in self.function_strings["global"].items():
+                        self.output.append(f'    ;; Length: {self.string_lengths[string]} bytes')
+                        self.output.append(f'    DB ${addr} "{string}"')
+                    if self.function_strings["global"]:
+                        self.output.append("")  # Empty line after string definitions
+
+                # Compile the main function body
+                for stmt in statement.body:
+                    self.compile_statement(stmt)
+            else:
+                self.compile_statement(statement)
 
     def compile_statement(self, statement: ASTNode):
         if isinstance(statement, VarDecl):
@@ -190,7 +210,7 @@ class UHighCompiler:
                     addr = self.get_string_address(value[1:-1])
                     self.output.extend([
                         f"MOV RAX 1",
-                        f"MOV RBX ${addr}",
+                        f"MOV RBX {addr}",
                         f"CALL #printf"
                     ])
                 elif isinstance(value, str) and value in self.const_variables:
@@ -272,6 +292,12 @@ class UHighCompiler:
             false_label = f"if_false_{unique_id}"
             end_label = f"if_end_{unique_id}"
             self.label_counter += 1
+
+            # Collect strings in both true and false blocks
+            self.collect_strings_in_block(statement.true_block)
+            if statement.false_block:
+                self.collect_strings_in_block(statement.false_block)
+
             condition_code = self.compile_condition(statement.condition, false_label)
             self.output.extend(condition_code)
             self.output.append(f"LBL {true_label}")

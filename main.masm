@@ -4,8 +4,10 @@
 LBL main
     ;; Length: 36 bytes
     DB $100 "greater or equal motherfuckers!!!\n"
+    ;; Length: 34 bytes
+    DB $136 "nope, it's not greater or equal\n"
 
-MOV R0 50
+MOV R0 51
 MOV R1 50
 MOV R2 R0
 MOV R3 R1
@@ -18,8 +20,11 @@ CMP R5 R6
 JE #if_false_0
 LBL if_true_0
 MOV RAX 1
-MOV RBX $100
+MOV RBX 100
 CALL #printf
 JMP #if_end_0
 LBL if_false_0
+MOV RAX 1
+MOV RBX 136
+CALL #printf
 LBL if_end_0

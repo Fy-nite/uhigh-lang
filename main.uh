@@ -6,4 +6,7 @@ func main()
     if z != 100 {
         print("greater or equal motherfuckers!!!\n")
     }
+    else{
+        print("nope, it's not greater or equal\n")
+    }
 }

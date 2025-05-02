@@ -3,10 +3,23 @@ func main()
     var x = 50
     var y = 50
     var z = x + y
-    if z != 100 {
+    if x == 50
+    {
+        print("x is 50\n")
+    }
+    if y == 50
+    {
+        print("y is 50\n")
+    }
+
+    if z == 100 {
         print("greater or equal motherfuckers!!!\n")
+        print(z)
+        print("\n")
     }
     else{
-        print("nope, it's not greater or equal\n")
+        print("not greater or equal buttttt\n")
     }
+    if x != 50 { print("x is not 50?\n") }
+    if y != 50 { print("y is not 50?\n")}
 }

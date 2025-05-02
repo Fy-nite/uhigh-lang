@@ -29,6 +29,21 @@ class UHighCompiler:
         self.current_function = None  # Track current function scope
         self.function_strings = {}    # Store strings per function: {function_name: {string: addr}}
         self.string_lengths = {}   # Track string lengths for memory allocation
+        self.indent_level = 0  # Track the current indentation level
+
+    def increase_indent(self):
+        """Increase the indentation level."""
+        self.indent_level += 1
+
+    def decrease_indent(self):
+        """Decrease the indentation level."""
+        if self.indent_level > 0:
+            self.indent_level -= 1
+
+    def add_line(self, line: str):
+        """Add a line to the output with proper indentation."""
+        indent = '    ' * self.indent_level  # Use 4 spaces per indent level
+        self.output.append(f"{indent}{line}")
 
     def get_next_reg(self) -> str:
         reg = f"R{self.current_reg}"
@@ -145,19 +160,22 @@ class UHighCompiler:
         # Process remaining statements
         for statement in statements:
             if isinstance(statement, FuncDecl) and statement.name == "main":
-                self.output.append(f"LBL {statement.name}")
+                self.add_line(f"LBL {statement.name}")
+                self.increase_indent()
 
                 # Output string definitions for the main function
                 if "global" in self.function_strings:
                     for string, addr in self.function_strings["global"].items():
-                        self.output.append(f'    ;; Length: {self.string_lengths[string]} bytes')
-                        self.output.append(f'    DB ${addr} "{string}"')
+                        self.add_line(f'    ;; Length: {self.string_lengths[string]} bytes')
+                        self.add_line(f'    DB ${addr} "{string}"')
                     if self.function_strings["global"]:
-                        self.output.append("")  # Empty line after string definitions
+                        self.add_line("")  # Empty line after string definitions
 
                 # Compile the main function body
                 for stmt in statement.body:
                     self.compile_statement(stmt)
+
+                self.decrease_indent()
             else:
                 self.compile_statement(statement)
 
@@ -167,29 +185,29 @@ class UHighCompiler:
             if statement.initial_value is not None:
                 dest_reg = f"R{self.variables[statement.name]}"
                 if isinstance(statement.initial_value, int):
-                    self.output.append(f"MOV {dest_reg} {statement.initial_value}")
+                    self.add_line(f"  MOV {dest_reg} {statement.initial_value}")
                 elif isinstance(statement.initial_value, str) and statement.initial_value.startswith('"'):
                     addr = self.get_string_address(statement.initial_value[1:-1])
-                    self.output.append(f"MOV {dest_reg} ${addr}")
+                    self.add_line(f"  MOV {dest_reg} ${addr}")
                 else:
                     result_reg = self.compile_expression(statement.initial_value)
                     if result_reg != dest_reg:
-                        self.output.append(f"MOV {dest_reg} {result_reg}")
+                        self.add_line(f"  MOV {dest_reg} {result_reg}")
         elif isinstance(statement, ConstDecl):
             self.variables[statement.name] = len(self.variables)
             self.const_variables[statement.name] = True
-            self.output.append(f"MOV R{self.variables[statement.name]} {statement.value}")
+            self.add_line(f"  MOV R{self.variables[statement.name]} {statement.value}")
         elif isinstance(statement, Assignment):
             dest_reg = f"R{self.variables[statement.name]}"
             if isinstance(statement.value, int):
-                self.output.append(f"MOV {dest_reg} {statement.value}")
+                self.add_line(f"  MOV {dest_reg} {statement.value}")
             elif isinstance(statement.value, str) and statement.value.startswith('"'):
                 addr = self.get_string_address(statement.value[1:-1])
-                self.output.append(f"MOV {dest_reg} ${addr}")
+                self.add_line(f"  MOV {dest_reg} ${addr}")
             else:
                 result_reg = self.compile_expression(statement.value)
                 if result_reg != dest_reg:  # Only generate MOV if registers are different
-                    self.output.append(f"MOV {dest_reg} {result_reg}")
+                    self.add_line(f"  MOV {dest_reg} {result_reg}")
         elif isinstance(statement, Print):
             # Check if the first value is a variable or constant
             if len(statement.values) == 1:
@@ -197,30 +215,24 @@ class UHighCompiler:
                 if isinstance(value, int):
                     # Directly print the integer
                     reg = self.get_next_reg()
-                    self.output.append(f"MOV {reg} {value}")
-                    self.output.extend([
-                        f"MOV RAX 1",
-                        f"MOV RBX {reg}",
-                        f"CALL #printint"
-                    ])
+                    self.add_line(f"  MOV {reg} {value}")
+                    self.add_line(f"  MOV RAX 1")
+                    self.add_line(f"  MOV RBX {reg}")
+                    self.add_line(f"  CALL #printint")
                     # check if it' a variable then use printint for int type or printf for string type
                     
                 elif isinstance(value, str) and value.startswith('"'):
                     # Directly print the string
                     addr = self.get_string_address(value[1:-1])
-                    self.output.extend([
-                        f"MOV RAX 1",
-                        f"MOV RBX {addr}",
-                        f"CALL #printf"
-                    ])
+                    self.add_line(f"  MOV RAX 1")
+                    self.add_line(f"  MOV RBX {addr}")
+                    self.add_line(f"  CALL #printf")
                 elif isinstance(value, str) and value in self.const_variables:
                     # Directly print the constant variable
                     reg = f"R{self.variables[value]}"
-                    self.output.extend([
-                        f"MOV RAX 1",
-                        f"MOV RBX {reg}",
-                        f"CALL #printint"
-                    ])
+                    self.add_line(f"  MOV RAX 1")
+                    self.add_line(f"  MOV RBX {reg}")
+                    self.add_line(f"  CALL #printint")
                 
                 
                 
@@ -229,31 +241,25 @@ class UHighCompiler:
                     if isinstance(self.variables[value], int):
                         # Use printint for integer variables
                         reg = f"R{self.variables[value]}"
-                        self.output.extend([
-                            f"MOV RAX 1",
-                            f"MOV RBX {reg}",
-                            f"CALL #printint"
-                        ])
+                        self.add_line(f"  MOV RAX 1")
+                        self.add_line(f"  MOV RBX {reg}")
+                        self.add_line(f"  CALL #printint")
                     else:
                         # Use printf for string variables
                         reg = f"R{self.variables[value]}"
-                        self.output.extend([
-                            f"MOV RAX 1",
-                            f"MOV RBX {reg}",
-                            f"CALL #printf"
-                        ])
+                        self.add_line(f"  MOV RAX 1")
+                        self.add_line(f"  MOV RBX {reg}")
+                        self.add_line(f"  CALL #printf")
                 else:
                     # Fallback to formatted string handling
                     fmt = value
                     fmt_addr = self.get_string_address(fmt[1:-1]) if isinstance(fmt, str) and fmt.startswith('"') else fmt
                     formatted_addr = self.get_next_reg()
-                    self.output.append(f"MNI Memory.allocate {formatted_addr} 256")
-                    self.output.append(f"MNI StringOperations.format {formatted_addr} {fmt_addr}")
-                    self.output.extend([
-                        f"MOV RAX 1",
-                        f"MOV RBX {formatted_addr}",
-                        f"CALL #printf"
-                    ])
+                    self.add_line(f"  MNI Memory.allocate {formatted_addr} 256")
+                    self.add_line(f"  MNI StringOperations.format {formatted_addr} {fmt_addr}")
+                    self.add_line(f"  MOV RAX 1")
+                    self.add_line(f"  MOV RBX {formatted_addr}")
+                    self.add_line(f"  CALL #printf")
             else:
                 # Handle multiple arguments (fallback to formatted string handling)
                 fmt = statement.values[0]
@@ -264,7 +270,7 @@ class UHighCompiler:
                 for arg in statement.values[1:]:
                     if isinstance(arg, int):
                         reg = self.get_next_reg()
-                        self.output.append(f"MOV {reg} {arg}")
+                        self.add_line(f"  MOV {reg} {arg}")
                         arg_addrs.append(reg)
                     elif isinstance(arg, str) and arg.startswith('"'):
                         addr = self.get_string_address(arg[1:-1])
@@ -275,17 +281,15 @@ class UHighCompiler:
 
                 # Allocate memory for the formatted string
                 formatted_addr = self.get_next_reg()
-                self.output.append(f"MNI Memory.allocate {formatted_addr} 256")
+                self.add_line(f"  MNI Memory.allocate {formatted_addr} 256")
 
                 # Call MNI StringOperations.format
-                self.output.append(f"MNI StringOperations.format {formatted_addr} {fmt_addr} {' '.join(arg_addrs)}")
+                self.add_line(f"  MNI StringOperations.format {formatted_addr} {fmt_addr} {' '.join(arg_addrs)}")
 
                 # Pass the formatted string to printf
-                self.output.extend([
-                    f"MOV RAX 1",
-                    f"MOV RBX {formatted_addr}",
-                    f"CALL #printf"
-                ])
+                self.add_line(f"  MOV RAX 1")
+                self.add_line(f"  MOV RBX {formatted_addr}")
+                self.add_line(f"  CALL #printf")
         elif isinstance(statement, IfStatement):
             unique_id = self.label_counter
             true_label = f"if_true_{unique_id}"
@@ -300,29 +304,35 @@ class UHighCompiler:
 
             condition_code = self.compile_condition(statement.condition, false_label)
             self.output.extend(condition_code)
-            self.output.append(f"LBL {true_label}")
+            self.add_line(f"LBL {true_label}")
+            self.increase_indent()
             for stmt in statement.true_block:
                 self.compile_statement(stmt)
-            self.output.append(f"JMP #{end_label}")
-            self.output.append(f"LBL {false_label}")
+            self.decrease_indent()
+            self.add_line(f"  JMP #{end_label}")
+            self.add_line(f"  LBL {false_label}")
             if statement.false_block:
+                self.increase_indent()
                 for stmt in statement.false_block:
                     self.compile_statement(stmt)
-            self.output.append(f"LBL {end_label}")
+                self.decrease_indent()
+            self.add_line(f"LBL {end_label}")
         elif isinstance(statement, WhileStatement):
             start_label = self.get_next_label()
             end_label = self.get_next_label()
-            self.output.append(f"LBL {start_label}")
+            self.add_line(f"LBL {start_label}")
             condition_code = self.compile_condition(statement.condition, end_label)
             self.output.extend(condition_code)
+            self.increase_indent()
             for stmt in statement.body:
                 self.compile_statement(stmt)
-            self.output.append(f"JMP #{start_label}")
-            self.output.append(f"LBL {end_label}")
+            self.decrease_indent()
+            self.add_line(f"  JMP #{start_label}")
+            self.add_line(f"LBL {end_label}")
         elif isinstance(statement, FuncDecl):
             self.current_function = statement.name
             # Output function label
-            self.output.append(f"LBL {statement.name}")
+            self.add_line(f"LBL {statement.name}")
 
             # Collect strings in the function body first
             self.collect_strings_in_block(statement.body)
@@ -331,22 +341,24 @@ class UHighCompiler:
             if self.current_function in self.function_strings:
                 for string, addr in self.function_strings[self.current_function].items():
                     # Add string length as a comment for clarity
-                    self.output.append(f'    ;; Length: {self.string_lengths[string]} bytes')
-                    self.output.append(f'    DB ${addr} "{string}"')
+                    self.add_line(f'    ;; Length: {self.string_lengths[string]} bytes')
+                    self.add_line(f'    DB ${addr} "{string}"')
                 if self.function_strings[self.current_function]:
-                    self.output.append("")  # Empty line after string definitions
+                    self.add_line("")  # Empty line after string definitions
             
             # Compile function body
+            self.increase_indent()
             for stmt in statement.body:
                 self.compile_statement(stmt)
+            self.decrease_indent()
             
             self.current_function = None  # Reset current function
         elif isinstance(statement, FuncCall):
-            self.output.append(f"CALL #{statement.name}")
+            self.add_line(f"  CALL #{statement.name}")
         elif isinstance(statement, InlineAsm):
             # Add inline assembly code directly to the output
             # Prefix with a comment indicating it's inline assembly
-            self.output.append(f"    ; Inline μHigh assembly block")
+            self.add_line(f"    ; Inline μHigh assembly block")
             
             # Process each line of assembly code
             lines = statement.code.split('\n')
@@ -355,11 +367,11 @@ class UHighCompiler:
                 if stripped:  # Skip empty lines
                     # Don't add extra indentation for comment lines
                     if stripped.startswith(';'):
-                        self.output.append(f"    {stripped}")
+                        self.add_line(f"    {stripped}")
                     else:
-                        self.output.append(f"    {stripped}")
+                        self.add_line(f"    {stripped}")
             
-            self.output.append("")  # Add an empty line after the assembly block
+            self.add_line("")  # Add an empty line after the assembly block
 
     def compile_condition(self, condition: Union[str, int], false_label: str) -> List[str]:
         ops = {

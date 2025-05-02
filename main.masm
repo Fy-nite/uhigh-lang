@@ -2,29 +2,89 @@
 #include "stdio.print"
 
 LBL main
-    ;; Length: 36 bytes
-    DB $100 "greater or equal motherfuckers!!!\n"
-    ;; Length: 34 bytes
-    DB $136 "nope, it's not greater or equal\n"
-
-MOV R0 51
+        ;; Length: 10 bytes
+        DB $100 "x is 50\n"
+        ;; Length: 10 bytes
+        DB $110 "y is 50\n"
+        ;; Length: 36 bytes
+        DB $120 "greater or equal motherfuckers!!!\n"
+        ;; Length: 3 bytes
+        DB $156 "\n"
+        ;; Length: 31 bytes
+        DB $159 "not greater or equal buttttt\n"
+        ;; Length: 15 bytes
+        DB $190 "x is not 50?\n"
+        ;; Length: 15 bytes
+        DB $205 "y is not 50?\n"
+    
+MOV R0 50
 MOV R1 50
 MOV R2 R0
 MOV R3 R1
 MOV R4 R2
 ADD R4 R3
-MOV R2 R4
-MOV R5 R2
-MOV R6 100
+      MOV R2 R4
+MOV R5 R0
+MOV R6 50
 CMP R5 R6
-JE #if_false_0
-LBL if_true_0
-MOV RAX 1
-MOV RBX 100
-CALL #printf
-JMP #if_end_0
-LBL if_false_0
-MOV RAX 1
-MOV RBX 136
-CALL #printf
-LBL if_end_0
+JNE #if_false_0
+    LBL if_true_0
+          MOV RAX 1
+          MOV RBX 100
+          CALL #printf
+      JMP #if_end_0
+      LBL if_false_0
+    LBL if_end_0
+MOV R7 R1
+MOV R8 50
+CMP R7 R8
+JNE #if_false_1
+    LBL if_true_1
+          MOV RAX 1
+          MOV RBX 110
+          CALL #printf
+      JMP #if_end_1
+      LBL if_false_1
+    LBL if_end_1
+MOV R9 R2
+MOV R10 100
+CMP R9 R10
+JNE #if_false_2
+    LBL if_true_2
+          MOV RAX 1
+          MOV RBX 120
+          CALL #printf
+          MOV RAX 1
+          MOV RBX R2
+          CALL #printint
+          MOV RAX 1
+          MOV RBX 156
+          CALL #printf
+      JMP #if_end_2
+      LBL if_false_2
+          MOV RAX 1
+          MOV RBX 159
+          CALL #printf
+    LBL if_end_2
+MOV R11 R0
+MOV R12 50
+CMP R11 R12
+JE #if_false_3
+    LBL if_true_3
+          MOV RAX 1
+          MOV RBX 190
+          CALL #printf
+      JMP #if_end_3
+      LBL if_false_3
+    LBL if_end_3
+MOV R13 R1
+MOV R14 50
+CMP R13 R14
+JE #if_false_4
+    LBL if_true_4
+          MOV RAX 1
+          MOV RBX 205
+          CALL #printf
+      JMP #if_end_4
+      LBL if_false_4
+    LBL if_end_4

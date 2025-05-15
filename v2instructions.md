@@ -164,6 +164,15 @@ OUT port value
 Outputs a value or string (prefixed with $) to 1. stdout, 2. stderr with a newline.
 Example: `OUT 2 R1` or `OUT 1 $500`
 
+### IN
+
+```
+IN $<memory address>
+```
+Reads a string from stdin into the specified memory address.
+Example: `IN $1000` - Reads a string from stdin into memory starting at address 1000
+Note: The string is null-terminated.
+
 ### COUT
 
 ```

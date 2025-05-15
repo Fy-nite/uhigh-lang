@@ -2,7 +2,7 @@
 
 import sys
 import os
-from uhigh import UHighCompiler
+from .uhigh import UHighCompiler
 
 def build_project(project_dir: str):
     compiler = UHighCompiler()

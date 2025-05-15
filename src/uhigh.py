@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import re
 import sys
 import os
@@ -175,6 +174,9 @@ class UHighCompiler:
                 for stmt in statement.body:
                     self.compile_statement(stmt)
 
+                # Add HLT at the end of main
+                self.add_line("HLT")
+
                 self.decrease_indent()
             else:
                 self.compile_statement(statement)
@@ -321,12 +323,36 @@ class UHighCompiler:
             start_label = self.get_next_label()
             end_label = self.get_next_label()
             self.add_line(f"LBL {start_label}")
-            condition_code = self.compile_condition(statement.condition, end_label)
-            self.output.extend(condition_code)
-            self.increase_indent()
+            # Assume condition is of the form 'x < y' or similar
+            cond = statement.condition
+            if isinstance(cond, str) and any(op in cond for op in ['<', '>', '==', '!=', '<=', '>=']):
+                # Parse condition string
+                parts = cond.split()
+                left, op, right = parts[0], parts[1], parts[2]
+                reg_left = left if left.startswith('R') else (f"R{self.variables[left]}" if left in self.variables else left)
+                reg_right = right if right.startswith('R') else (f"R{self.variables[right]}" if right in self.variables else right)
+                self.add_line(f"  MOV R1 {reg_left}")
+                self.add_line(f"  MOV R2 {reg_right}")
+                self.add_line(f"  CMP R1 R2")
+                if op == '<':
+                    self.add_line(f"  JGE #{end_label}")
+                elif op == '>':
+                    self.add_line(f"  JLE #{end_label}")
+                elif op == '==':
+                    self.add_line(f"  JNE #{end_label}")
+                elif op == '!=':
+                    self.add_line(f"  JE #{end_label}")
+                elif op == '<=':
+                    self.add_line(f"  JG #{end_label}")
+                elif op == '>=':
+                    self.add_line(f"  JL #{end_label}")
+            else:
+                # Fallback: treat as boolean variable
+                reg_cond = cond if cond.startswith('R') else (f"R{self.variables[cond]}" if cond in self.variables else cond)
+                self.add_line(f"  CMP {reg_cond} 0")
+                self.add_line(f"  JE #{end_label}")
             for stmt in statement.body:
                 self.compile_statement(stmt)
-            self.decrease_indent()
             self.add_line(f"  JMP #{start_label}")
             self.add_line(f"LBL {end_label}")
         elif isinstance(statement, FuncDecl):

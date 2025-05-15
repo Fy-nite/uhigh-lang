@@ -1,0 +1,5 @@
+String* add(a: String*, b:String*)
+{
+    return a.concat(b);
+}
+

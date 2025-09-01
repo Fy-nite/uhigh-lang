@@ -39,13 +39,15 @@ class WhileStatement(ASTNode):
         self.body = body
 
 class FuncDecl(ASTNode):
-    def __init__(self, name: str, body: List[ASTNode]):
+    def __init__(self, name: str, parameters: List[str], body: List[ASTNode]):
         self.name = name
+        self.parameters = parameters
         self.body = body
 
 class FuncCall(ASTNode):
-    def __init__(self, name: str):
+    def __init__(self, name: str, args: List[Union[str, int]] = None):
         self.name = name
+        self.args = args or []
 
 class Include(ASTNode):
     def __init__(self, filename: str):
@@ -60,6 +62,7 @@ class Parser:
         self.tokens = tokens
         self.current = 0
         self.debug = debug
+        self.declared_vars = set()  # Track declared variables
 
     def parse(self) -> Program:
         statements = []
@@ -137,6 +140,7 @@ class Parser:
     def var_decl(self) -> VarDecl:
         self.consume('IDENT', 'var')
         name = self.consume('IDENT')
+        self.declared_vars.add(name)
         if self.match('ASSIGN'):
             self.consume('ASSIGN')
             initial_value = self.expression()
@@ -183,10 +187,16 @@ class Parser:
         self.consume('IDENT', 'func')
         name = self.consume('IDENT')
         self.consume('LPAREN')
+        parameters = []
+        if not self.match('RPAREN'):
+            parameters.append(self.consume('IDENT'))
+            while self.match('COMMA'):
+                self.consume('COMMA')
+                parameters.append(self.consume('IDENT'))
         self.consume('RPAREN')
         self.consume('LBRACE')
         body = self.block()
-        return FuncDecl(name, body)
+        return FuncDecl(name, parameters, body)
 
     def inline_asm_stmt(self) -> InlineAsm:
         # Print current token for debugging
@@ -215,13 +225,21 @@ class Parser:
     def assignment_or_func_call(self) -> Union[Assignment, FuncCall]:
         name = self.consume('IDENT')
         if self.match('ASSIGN'):
+            if name not in self.declared_vars:
+                raise RuntimeError(f"Variable '{name}' used before declaration.")
             self.consume('ASSIGN')
             value = self.expression()
             return Assignment(name, value)
         elif self.match('LPAREN'):
             self.consume('LPAREN')
+            args = []
+            if not self.match('RPAREN'):
+                args.append(self.expression())
+                while self.match('COMMA'):
+                    self.consume('COMMA')
+                    args.append(self.expression())
             self.consume('RPAREN')
-            return FuncCall(name)
+            return FuncCall(name, args)
         else:
             raise RuntimeError(f'Unexpected token after identifier: {self.tokens[self.current]}')
 
@@ -249,7 +267,10 @@ class Parser:
         elif token[0] == 'STRING':
             left = self.consume('STRING')
         elif token[0] == 'IDENT':
-            left = self.consume('IDENT')
+            var_name = self.consume('IDENT')
+            if var_name not in self.declared_vars:
+                raise RuntimeError(f"Variable '{var_name}' used before declaration.")
+            left = var_name
         else:
             raise RuntimeError(f'Unexpected token in expression: {token}')
 
@@ -265,7 +286,10 @@ class Parser:
                 elif right_token[0] == 'STRING':
                     right = self.consume('STRING')
                 elif right_token[0] == 'IDENT':
-                    right = self.consume('IDENT')
+                    var_name = self.consume('IDENT')
+                    if var_name not in self.declared_vars:
+                        raise RuntimeError(f"Variable '{var_name}' used before declaration.")
+                    right = var_name
                 else:
                     raise RuntimeError(f'Unexpected token in binary expression: {right_token}')
                 # Return as a string for the compiler to parse
